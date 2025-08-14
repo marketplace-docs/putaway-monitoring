@@ -226,7 +226,7 @@
                     <input type="text" id="edit-putaway-by" class="w-full mt-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
                 </div>
                 <div>
-                    <label for="edit-checker-by" class="block text-gray-400 text-sm">Checker By</label>
+                    <label for="edit-checker-by" class="block text-gray-400 text-sm">Validate By</label>
                     <input type="text" id="edit-checker-by" class="w-full mt-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
                 </div>
             </div>
@@ -315,7 +315,7 @@
         const maximizeIcon = document.getElementById('maximize-icon');
         const minimizeIcon = document.getElementById('minimize-icon');
 
-        const tableHeaders = ["Document Number", "Reference SKU", "Barcode", "Product Name", "Brand", "Exp Date", "Quantity", "Start at", "Done at", "Created By", "Putaway By", "Checker By", "Status", "Aksi"];
+        const tableHeaders = ["Document Number", "Reference SKU", "Barcode", "Product Name", "Brand", "Exp Date", "Quantity", "Start at", "Done at", "Created By", "Putaway By", "Validate By", "Status", "Aksi"];
         
         let allDataRows = [];
         let filteredDataRows = [];
@@ -349,7 +349,7 @@
             'Quantity': document.getElementById('edit-quantity'),
             'Created By': document.getElementById('edit-created-by'),
             'Putaway By': document.getElementById('edit-putaway-by'),
-            'Checker By': document.getElementById('edit-checker-by')
+            'Validate By': document.getElementById('edit-checker-by')
         };
 
 
@@ -414,7 +414,7 @@
                         'Done at': '',
                         'Created By': 'Nandya Laksita Ariani', 
                         'Putaway By': '',
-                        'Checker By': '', 
+                        'Validate By': '', 
                     };
                     allDataRows.push(rowData);
                 }
@@ -464,7 +464,7 @@
                     'Done at': '',
                     'Created By': 'Nandya Laksita Ariani',
                     'Putaway By': '',
-                    'Checker By': '',
+                    'Validate By': '',
                 };
                 allDataRows.push(rowData);
             });
@@ -845,7 +845,7 @@
                     if (originalIndex !== -1 && allDataRows[originalIndex].Status === 'In Progress') {
                         allDataRows[originalIndex]['Done at'] = doneAtString;
                         allDataRows[originalIndex]['finish-time-iso'] = now.toISOString();
-                        allDataRows[originalIndex]['Checker By'] = 'Arlan Saputra';
+                        allDataRows[originalIndex]['Validate By'] = 'Arlan Saputra';
                         allDataRows[originalIndex].Status = 'Completed';
                         updatedCount++;
                     }
@@ -880,7 +880,7 @@
                         editFields['Quantity'].value = docData['Quantity'];
                         editFields['Created By'].value = docData['Created By'];
                         editFields['Putaway By'].value = docData['Putaway By'];
-                        editFields['Checker By'].value = docData['Checker By'];
+                        editFields['Validate By'].value = docData['Validate By'];
 
                         editModal.style.display = 'flex';
                     }
@@ -907,7 +907,7 @@
                     editFields['Quantity'].value = docData['Quantity'];
                     editFields['Created By'].value = docData['Created By'];
                     editFields['Putaway By'].value = docData['Putaway By'];
-                    editFields['Checker By'].value = docData['Checker By'];
+                    editFields['Validate By'].value = docData['Validate By'];
 
                     editModal.style.display = 'flex';
                 }
@@ -934,7 +934,7 @@
                 docToUpdate['Quantity'] = editFields['Quantity'].value;
                 docToUpdate['Created By'] = editFields['Created By'].value;
                 docToUpdate['Putaway By'] = editFields['Putaway By'].value;
-                docToUpdate['Checker By'] = editFields['Checker By'].value;
+                docToUpdate['Validate By'] = editFields['Validate By'].value;
                 
                 filteredDataRows = [...allDataRows];
                 displayRows(currentPage);
