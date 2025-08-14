@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Putaway Monitoring</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            color: #E5E7EB; /* Light gray text for dark background */
+        }
+        #scene-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        .dashboard-container {
+            position: relative;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+
+    <!-- 3D Background Container -->
+    <div id="scene-container"></div>
+
+    <!-- Main Dashboard Content -->
+    <div class="dashboard-container min-h-screen flex items-center justify-center p-4 md:p-8">
+        <div class="bg-gray-800 bg-opacity-70 backdrop-blur-md rounded-2xl shadow-xl w-full max-w-7xl p-6 md:p-10 flex flex-col gap-6">
+            <header class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <h1 class="text-3xl font-bold text-white">Putaway Dashboard</h1>
+                <div class="flex flex-wrap items-center justify-center gap-2">
+                    <!-- File Upload Button - Adjusted size -->
+                    <label for="upload-csv" class="cursor-pointer">
+                        <div class="inline-flex items-center px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-lg shadow-md transition-colors duration-300">
+                            Unggah CSV
+                        </div>
+                        <input type="file" id="upload-csv" accept=".csv" class="hidden">
+                    </label>
+                    <!-- Export CSV Button - Adjusted size -->
+                    <button id="export-sv-btn" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg shadow-md transition-colors duration-300">
+                        Export CSV
+                    </button>
+                    <!-- Scan Document Button - Adjusted size -->
+                    <button id="scan-doc-btn" class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold rounded-lg shadow-md transition-colors duration-300">
+                        Scan Document
+                    </button>
+                </div>
+            </header>
+            
+            <!-- Search Bar -->
+            <div class="w-full">
+                <input type="text" id="search-input" class="w-full p-2 rounded-lg bg-gray-700 text-white border border-gray-600 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Cari berdasarkan Document Number, Reference SKU, atau Barcode...">
+            </div>
+
+            <!-- Bulk Action Buttons -->
+            <div class="flex flex-wrap items-center gap-3">
+                <span id="selected-count" class="text-sm font-semibold text-gray-400">SELECTED: 0 DOCUMENTS</span>
+                <button id="start-all-btn" class="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-lg shadow-md transition-colors duration-300" disabled>
+                    Start
+                </button>
+                <button id="finish-all-btn" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg shadow-md transition-colors duration-300" disabled>
+                    Finish
+                </button>
+            </div>
+
+            <!-- Data Table Section -->
+            <div class="overflow-x-auto rounded-xl shadow-lg border border-gray-700">
+                <table class="min-w-full text-sm text-gray-200">
+                    <thead class="bg-gray-700 text-gray-300 uppercase tracking-wider">
+                        <tr>
+                            <th class="py-3 px-6 text-left">
+                                <input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-600 bg-gray-700 text-sky-500 focus:ring-sky-500">
+                            </th>
+                            <th class="py-3 px-6 text-left">Document Number</th>
+                            <th class="py-3 px-6 text-left">Reference SKU</th>
+                            <th class="py-3 px-6 text-left">Barcode</th>
+                            <th class="py-3 px-6 text-left">Product Name</th>
+                            <th class="py-3 px-6 text-left">Brand</th>
+                            <th class="py-3 px-6 text-left">Exp Date</th>
+                            <th class="py-3 px-6 text-left">Quantity</th>
+                            <th class="py-3 px-6 text-left">Start at</th>
+                            <th class="py-3 px-6 text-left">Done at</th>
+                            <th class="py-3 px-6 text-left">Created By</th>
+                            <th class="py-3 px-6 text-left">Checker By</th>
+                            <th class="py-3 px-6 text-left">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-table-body" class="divide-y divide-gray-700">
+                        <!-- Data rows will be injected here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Edit Button and Pagination Controls -->
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 mt-6">
+                <button id="edit-doc-btn" class="px-4 py-2 w-full md:w-auto bg-indigo-500 text-white rounded-lg shadow-md hover:bg-indigo-600 transition-colors duration-300 disabled:opacity-50" disabled>
+                    Edit Document
+                </button>
+                <div class="flex items-center gap-4">
+                    <!-- Records per page selector -->
+                    <div class="flex items-center gap-2">
+                        <label for="rows-per-page-select" class="text-sm text-gray-400">Records per page:</label>
+                        <select id="rows-per-page-select" class="bg-gray-700 text-white text-sm rounded-lg border border-gray-600 p-1">
+                            <option value="10">10</option>
+                            <option value="30">30</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                    <button id="prev-page-btn" class="px-4 py-2 bg-gray-700 text-white rounded-lg shadow-md hover:bg-gray-600 transition-colors duration-300 disabled:opacity-50" disabled>
+                        Previous
+                    </button>
+                    <span id="page-info" class="text-sm text-gray-400">
+                        (0/0 pages)
+                    </span>
+                    <button id="next-page-btn" class="px-4 py-2 bg-gray-700 text-white rounded-lg shadow-md hover:bg-gray-600 transition-colors duration-300 disabled:opacity-50" disabled>
+                        Next
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Message Box -->
+    <div id="custom-message-box" class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+        <div class="bg-gray-800 rounded-lg p-6 shadow-xl w-80 text-center border-t-4 border-sky-500">
+            <p id="message-text" class="text-white text-lg font-semibold mb-4"></p>
+            <button id="message-close-btn" class="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-bold">OK</button>
+        </div>
+    </div>
+    
+    <!-- Scan Document Modal -->
+    <div id="scan-modal" class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+        <div class="bg-gray-800 rounded-lg p-6 shadow-xl w-full max-w-lg border border-gray-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-white">Upload Document for OCR</h3>
+                <button id="close-scan-modal" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <p class="text-sm text-gray-400 mb-4">Pilih file gambar untuk diproses. Aplikasi akan mencoba mengekstrak data dari gambar.</p>
+            <label for="scan-file-upload" class="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-700 hover:bg-gray-600 transition-colors duration-300">
+                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                    <svg class="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-4-4v-1a4 4 0 014-4h4l1.383-1.844A2 2 0 0113.82 5h.36a2 2 0 011.696.906L16 7h4a4 4 0 014 4v1a4 4 0 01-4 4h-4a4 4 0 01-4-4H7z"></path></svg>
+                    <p class="mb-2 text-sm text-gray-400"><span class="font-semibold">Klik untuk mengunggah</span> atau seret dan lepas</p>
+                    <p class="text-xs text-gray-500">SVG, PNG, JPG, atau GIF</p>
+                </div>
+                <input id="scan-file-upload" type="file" class="hidden" accept="image/*" multiple />
+            </label>
+            <button id="process-scan-btn" class="w-full mt-4 px-4 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold rounded-lg transition-colors duration-300" disabled>
+                Proses & Tambah ke Tabel
+            </button>
+        </div>
+    </div>
+
+    <!-- Edit Document Modal -->
+    <div id="edit-modal" class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+        <div class="bg-gray-800 rounded-lg p-6 shadow-xl w-full max-w-xl border border-gray-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-white">Edit Document</h3>
+                <button id="close-edit-modal" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="edit-doc-num" class="block text-gray-400 text-sm">Document Number</label>
+                    <input type="text" id="edit-doc-num" class="w-full mt-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div>
+                    <label for="edit-ref-sku" class="block text-gray-400 text-sm">Reference SKU</label>
+                    <input type="text" id="edit-ref-sku" class="w-full mt-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div>
+                    <label for="edit-barcode" class="block text-gray-400 text-sm">Barcode</label>
+                    <input type="text" id="edit-barcode" class="w-full mt-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div>
+                    <label for="edit-prod-name" class="block text-gray-400 text-sm">Product Name</label>
+                    <input type="text" id="edit-prod-name" class="w-full mt-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div>
+                    <label for="edit-brand" class="block text-gray-400 text-sm">Brand</label>
+                    <input type="text" id="edit-brand" class="w-full mt-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div>
+                    <label for="edit-exp-date" class="block text-gray-400 text-sm">Exp Date</label>
+                    <input type="text" id="edit-exp-date" class="w-full mt-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div>
+                    <label for="edit-quantity" class="block text-gray-400 text-sm">Quantity</label>
+                    <input type="text" id="edit-quantity" class="w-full mt-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div>
+                    <label for="edit-created-by" class="block text-gray-400 text-sm">Created By</label>
+                    <input type="text" id="edit-created-by" class="w-full mt-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div>
+                    <label for="edit-checker-by" class="block text-gray-400 text-sm">Checker By</label>
+                    <input type="text" id="edit-checker-by" class="w-full mt-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+            </div>
+            <button id="save-edit-btn" class="w-full mt-6 px-4 py-3 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition-colors duration-300">
+                Save Changes
+            </button>
+        </div>
+    </div>
+
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+        <svg class="animate-spin h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+    </div>
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // --- Three.js script for 3D Background Animation ---
+        let scene, camera, renderer, particles;
+        const container = document.getElementById('scene-container');
+
+        function init3D() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            const particleCount = 1000;
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            for (let i = 0; i < particleCount; i++) {
+                const x = (Math.random() - 0.5) * 20;
+                const y = (Math.random() - 0.5) * 20;
+                const z = (Math.random() - 0.5) * 20;
+                vertices.push(x, y, z);
+            }
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            const material = new THREE.PointsMaterial({
+                color: 0x93C5FD,
+                size: 0.05,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            particles.rotation.x += 0.0005;
+            particles.rotation.y += 0.0005;
+            renderer.render(scene, camera);
+        }
+
+        // --- Dashboard Logic ---
+        const uploadCsvInput = document.getElementById('upload-csv');
+        const exportSvButton = document.getElementById('export-sv-btn');
+        const scanDocBtn = document.getElementById('scan-doc-btn');
+        const startAllBtn = document.getElementById('start-all-btn');
+        const finishAllBtn = document.getElementById('finish-all-btn');
+        const selectAllCheckbox = document.getElementById('select-all-checkbox');
+        const dataTableBody = document.getElementById('data-table-body');
+        const selectedCountSpan = document.getElementById('selected-count');
+        const editDocBtn = document.getElementById('edit-doc-btn');
+        const searchInput = document.getElementById('search-input');
+        const rowsPerPageSelect = document.getElementById('rows-per-page-select');
+
+        const tableHeaders = ["Document Number", "Reference SKU", "Barcode", "Product Name", "Brand", "Exp Date", "Quantity", "Start at", "Done at", "Created By", "Checker By", "Status"];
+        
+        let allDataRows = [];
+        let filteredDataRows = [];
+        let currentPage = 1;
+        let rowsPerPage = 10;
+        const pageInfo = document.getElementById('page-info');
+        const prevPageBtn = document.getElementById('prev-page-btn');
+        const nextPageBtn = document.getElementById('next-page-btn');
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+        
+        const scanModal = document.getElementById('scan-modal');
+        const closeScanModalBtn = document.getElementById('close-scan-modal');
+        const scanFileUpload = document.getElementById('scan-file-upload');
+        const processScanBtn = document.getElementById('process-scan-btn');
+        const loadingSpinner = document.getElementById('loading-spinner');
+
+        let uploadedFiles = [];
+        let editingUniqueId = null; 
+
+        // Edit modal elements
+        const editModal = document.getElementById('edit-modal');
+        const closeEditModalBtn = document.getElementById('close-edit-modal');
+        const saveEditBtn = document.getElementById('save-edit-btn');
+        const editFields = {
+            'Document Number': document.getElementById('edit-doc-num'),
+            'Reference SKU': document.getElementById('edit-ref-sku'),
+            'Barcode': document.getElementById('edit-barcode'),
+            'Product Name': document.getElementById('edit-prod-name'),
+            'Brand': document.getElementById('edit-brand'),
+            'Exp Date': document.getElementById('edit-exp-date'),
+            'Quantity': document.getElementById('edit-quantity'),
+            'Created By': document.getElementById('edit-created-by'),
+            'Checker By': document.getElementById('edit-checker-by')
+        };
+
+
+        function showMessage(message) {
+            const messageBox = document.getElementById('custom-message-box');
+            const messageText = document.getElementById('message-text');
+            messageBox.style.display = 'flex';
+            messageText.textContent = message;
+        }
+
+        document.getElementById('message-close-btn').addEventListener('click', () => {
+            document.getElementById('custom-message-box').style.display = 'none';
+        });
+        
+        function updateRowStatus(row, status) {
+            const statusCellSpan = row.querySelector('.status-cell-span');
+            const rowIndex = row.getAttribute('data-index');
+
+            if (statusCellSpan) {
+                statusCellSpan.textContent = status;
+                statusCellSpan.className = 'py-1 px-3 rounded-full text-xs';
+                if (status === 'Pending') {
+                    statusCellSpan.classList.add('bg-yellow-400', 'text-yellow-900');
+                } else if (status === 'In Progress') {
+                    statusCellSpan.classList.add('bg-blue-400', 'text-blue-900');
+                } else if (status === 'Completed') {
+                    statusCellSpan.classList.add('bg-emerald-400', 'text-emerald-900');
+                }
+            }
+        }
+        
+        uploadCsvInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const csvText = e.target.result;
+                    parseAndDisplayCSV(csvText);
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function parseAndDisplayCSV(csvText) {
+            const lines = csvText.trim().split('\n');
+            const dataLines = lines.slice(1);
+            allDataRows = [];
+
+            dataLines.forEach((line) => {
+                const values = line.split(',');
+                if (values.length >= 7) { 
+                    const rowData = {
+                        'Document Number': values[0].trim(),
+                        'Reference SKU': values[1].trim(),
+                        'Barcode': values[2].trim(),
+                        'Product Name': values[3].trim(),
+                        'Brand': values[4].trim(),
+                        'Exp Date': values[5].trim(),
+                        'Quantity': values[6].trim(),
+                        'Status': 'Pending',
+                        'Start at': '',
+                        'Done at': '',
+                        'Created By': 'Nandya Laksita Ariani', 
+                        'Checker By': '', 
+                    };
+                    allDataRows.push(rowData);
+                }
+            });
+            filteredDataRows = [...allDataRows];
+            currentPage = 1;
+            displayRows(currentPage);
+            showMessage('Data dari CSV berhasil diunggah dan ditampilkan!');
+        }
+
+        async function parseImageAndDisplay() {
+            loadingSpinner.style.display = 'flex';
+            
+            const results = await Promise.all(uploadedFiles.map(file => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        const base64Data = e.target.result.split(',')[1];
+                        try {
+                            const itemData = await processSingleImage(base64Data);
+                            resolve(itemData);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    reader.onerror = (error) => {
+                        reject(error);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }));
+            
+            loadingSpinner.style.display = 'none';
+
+            allDataRows = [];
+            results.flat().forEach(item => {
+                const rowData = {
+                    'Document Number': item['Document Number'],
+                    'Reference SKU': item['Reference SKU'],
+                    'Barcode': item['Barcode'],
+                    'Product Name': item['Product Name'],
+                    'Brand': item['Brand'],
+                    'Exp Date': item['Exp Date'],
+                    'Quantity': item['Quantity'],
+                    'Status': 'Pending',
+                    'Start at': '',
+                    'Done at': '',
+                    'Created By': 'Nandya Laksita Ariani',
+                    'Checker By': '',
+                };
+                allDataRows.push(rowData);
+            });
+            filteredDataRows = [...allDataRows];
+            currentPage = 1;
+            displayRows(currentPage);
+            showMessage('Data dari gambar berhasil diproses dan ditambahkan!');
+        }
+
+        async function processSingleImage(base64ImageData) {
+            const prompt = `From the image, extract the data for each item. The data should be in a JSON array format. Each object in the array should have the following properties: "Document Number", "Reference SKU", "Barcode", "Product Name", "Brand", "Exp Date", "Quantity", "Source", "Destination", "Location". The values should be extracted from the image. For "Product Name", please combine the name and location. If a value is not found, use an empty string. The "Document Number", "Source", and "Destination" are single values for the entire document, while the rest are for each line item.
+            
+            Example of output format:
+            [
+              {"Document Number": "DO-XXX-XXX-XXXX-XXXXX", "Reference SKU": "RO.SC-PCCTM250ALL1", "Barcode": "8809783326718", "Product Name": "Pine Cica Toner", "Brand": "undefined", "Exp Date": "2027-07-01", "Quantity": "21", "Source": "ONLCK/Stock", "Destination": "ONLCK/Marketplace", "Location": "CK1.F01.C03.R10.S02.B03"},
+              {"Document Number": "DO-XXX-XXX-XXXX-XXXXX", "Reference SKU": "RO.SC-PCCTM250ALL1", "Barcode": "8809783326718", "Product Name": "Pine Cica Toner", "Brand": "undefined", "Exp Date": "2027-07-01", "Quantity": "14", "Source": "ONLCK/Stock", "Destination": "ONLCK/Marketplace", "Location": "CK1.RE2.X15.R05.S02.B02"},
+            ]
+            `;
+            
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [
+                    {
+                        role: "user",
+                        parts: [
+                            { text: prompt },
+                            {
+                                inlineData: {
+                                    mimeType: "image/png",
+                                    data: base64ImageData
+                                }
+                            }
+                        ]
+                    }
+                ],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                "Document Number": { "type": "STRING" },
+                                "Reference SKU": { "type": "STRING" },
+                                "Barcode": { "type": "STRING" },
+                                "Product Name": { "type": "STRING" },
+                                "Brand": { "type": "STRING" },
+                                "Exp Date": { "type": "STRING" },
+                                "Quantity": { "type": "STRING" },
+                                "Source": { "type": "STRING" },
+                                "Destination": { "type": "STRING" },
+                                "Location": { "type": "STRING" }
+                            },
+                            "propertyOrdering": ["Document Number", "Reference SKU", "Barcode", "Product Name", "Brand", "Exp Date", "Quantity", "Source", "Destination", "Location"]
+                        }
+                    }
+                }
+            };
+
+            try {
+                let response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                let retries = 0;
+                const maxRetries = 5;
+                while (response.status === 429 && retries < maxRetries) {
+                    const delay = Math.pow(2, retries) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    retries++;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`API call failed with status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    
+                    const json = result.candidates[0].content.parts[0].text;
+                    return JSON.parse(json);
+                } else {
+                    console.error('Error: Invalid API response structure.');
+                    return [];
+                }
+            } catch (error) {
+                console.error('Error during API call:', error);
+                throw error;
+            }
+        }
+        
+        function formatDuration(milliseconds) {
+            if (isNaN(milliseconds) || milliseconds < 0) return 'N/A';
+            
+            const totalSeconds = Math.floor(milliseconds / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            
+            let durationText = "";
+            if (hours > 0) durationText += `${hours} Jam `;
+            if (minutes > 0) durationText += `${minutes} Menit`;
+            
+            return durationText.trim() || 'Kurang dari 1 menit';
+        }
+
+
+        function displayRows(page) {
+            dataTableBody.innerHTML = '';
+            const dataToDisplay = filteredDataRows;
+            const start = (page - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const paginatedRows = dataToDisplay.slice(start, end);
+
+            paginatedRows.forEach((rowData, index) => {
+                const row = document.createElement('tr');
+                row.classList.add('border-b', 'border-gray-600', 'hover:bg-gray-600', 'transition-colors', 'duration-150');
+                const originalIndex = allDataRows.findIndex(doc => 
+                    doc['Document Number'] === rowData['Document Number'] && 
+                    doc['Reference SKU'] === rowData['Reference SKU'] &&
+                    doc['Barcode'] === rowData['Barcode'] &&
+                    doc['Exp Date'] === rowData['Exp Date']
+                );
+                row.setAttribute('data-index', originalIndex);
+
+                const checkboxCell = document.createElement('td');
+                checkboxCell.classList.add('py-3', 'px-6', 'text-left', 'whitespace-nowrap');
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'row-checkbox h-4 w-4 rounded border-gray-600 bg-gray-700 text-sky-500 focus:ring-sky-500';
+                
+                if (rowData.Status === 'Completed') {
+                    checkbox.disabled = true;
+                }
+                
+                checkboxCell.appendChild(checkbox);
+                row.appendChild(checkboxCell);
+
+                tableHeaders.forEach(header => {
+                    const cell = document.createElement('td');
+                    cell.classList.add('py-3', 'px-6', 'text-left', 'whitespace-nowrap');
+                    
+                    if (header === 'Status') {
+                        const statusSpan = document.createElement('span');
+                        statusSpan.classList.add('status-cell-span', 'py-1', 'px-3', 'rounded-full', 'text-xs');
+                        statusSpan.textContent = rowData['Status'];
+                        if (rowData['Status'] === 'Pending') {
+                            statusSpan.classList.add('bg-yellow-400', 'text-yellow-900');
+                        } else if (rowData['Status'] === 'In Progress') {
+                            statusSpan.classList.add('bg-blue-400', 'text-blue-900');
+                        } else if (rowData['Status'] === 'Completed') {
+                            statusSpan.classList.add('bg-emerald-400', 'text-emerald-900');
+                        }
+                        cell.appendChild(statusSpan);
+                        cell.classList.add('status-cell');
+                    } else if (header === 'Start at') {
+                        const startAtText = rowData['Start at'];
+                        cell.textContent = startAtText || '';
+                    } else if (header === 'Done at') {
+                        const finishAtText = rowData['Done at'];
+                        const startTime = rowData['start-time-iso'];
+                        const finishTime = rowData['finish-time-iso'];
+                        let doneText = '';
+
+                        if (finishAtText && startTime && finishTime) {
+                            const startDate = new Date(startTime);
+                            const finishDate = new Date(finishTime);
+                            const durationMs = finishDate.getTime() - startDate.getTime();
+
+                            doneText = `${finishAtText} (${formatDuration(durationMs)})`;
+                        } else {
+                            doneText = finishAtText || '';
+                        }
+                        cell.textContent = doneText;
+                    } else {
+                        let displayValue = rowData[header] || '';
+                        
+                        cell.textContent = displayValue;
+                        cell.classList.add(header.toLowerCase().replace(/\s/g, '-') + '-data');
+                    }
+                    
+                    row.appendChild(cell);
+                });
+                
+                dataTableBody.appendChild(row);
+            });
+            
+            updatePaginationInfo();
+            setupCheckboxes();
+        }
+
+        function updatePaginationInfo() {
+            const totalPages = Math.ceil(filteredDataRows.length / rowsPerPage);
+            pageInfo.textContent = `(${currentPage}/${totalPages || 1} pages)`;
+            prevPageBtn.disabled = currentPage === 1;
+            nextPageBtn.disabled = currentPage >= totalPages || filteredDataRows.length === 0;
+        }
+
+        rowsPerPageSelect.addEventListener('change', (event) => {
+            rowsPerPage = parseInt(event.target.value);
+            currentPage = 1;
+            displayRows(currentPage);
+        });
+
+        prevPageBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                displayRows(currentPage);
+            }
+        });
+
+        nextPageBtn.addEventListener('click', () => {
+            const totalPages = Math.ceil(filteredDataRows.length / rowsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                displayRows(currentPage);
+            }
+        });
+        
+        searchInput.addEventListener('input', (event) => {
+            const query = event.target.value.toLowerCase();
+            filteredDataRows = allDataRows.filter(row => {
+                return (
+                    (row['Document Number'] && row['Document Number'].toLowerCase().includes(query)) ||
+                    (row['Reference SKU'] && row['Reference SKU'].toLowerCase().includes(query)) ||
+                    (row['Barcode'] && row['Barcode'].toLowerCase().includes(query))
+                );
+            });
+            currentPage = 1;
+            displayRows(currentPage);
+        });
+
+        scanDocBtn.addEventListener('click', () => {
+            scanModal.style.display = 'flex';
+        });
+
+        closeScanModalBtn.addEventListener('click', () => {
+            scanModal.style.display = 'none';
+        });
+
+        scanFileUpload.addEventListener('change', (event) => {
+            uploadedFiles = Array.from(event.target.files);
+            if (uploadedFiles.length > 0) {
+                processScanBtn.disabled = false;
+            } else {
+                processScanBtn.disabled = true;
+            }
+        });
+
+        processScanBtn.addEventListener('click', () => {
+            if (uploadedFiles.length > 0) {
+                loadingSpinner.style.display = 'flex';
+                scanModal.style.display = 'none';
+                scanFileUpload.value = '';
+                processScanBtn.disabled = true;
+                parseImageAndDisplay(uploadedFiles);
+            } else {
+                showMessage('Silakan pilih setidaknya satu file gambar untuk diproses.');
+            }
+        });
+
+        function setupCheckboxes() {
+            const checkboxes = dataTableBody.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', updateBulkButtons);
+            });
+            selectAllCheckbox.addEventListener('change', () => {
+                const visibleCheckboxes = Array.from(dataTableBody.querySelectorAll('.row-checkbox'));
+                const nonDisabledCheckboxes = visibleCheckboxes.filter(checkbox => !checkbox.disabled);
+                nonDisabledCheckboxes.forEach(checkbox => {
+                    checkbox.checked = selectAllCheckbox.checked;
+                });
+                updateBulkButtons();
+            });
+        }
+
+        function updateBulkButtons() {
+            const checkedBoxes = dataTableBody.querySelectorAll('.row-checkbox:checked');
+            startAllBtn.disabled = true;
+            finishAllBtn.disabled = true;
+            selectedCountSpan.textContent = `SELECTED: ${checkedBoxes.length} DOCUMENTS`;
+
+            const uniqueDocNumbers = new Set();
+            checkedBoxes.forEach(checkbox => {
+                const row = checkbox.closest('tr');
+                const originalIndex = parseInt(row.getAttribute('data-index'));
+                if (!isNaN(originalIndex) && allDataRows[originalIndex]) {
+                    uniqueDocNumbers.add(allDataRows[originalIndex]['Document Number']);
+                }
+            });
+
+            editDocBtn.disabled = uniqueDocNumbers.size !== 1;
+
+            if (checkedBoxes.length > 0) {
+                let canStart = false;
+                let canFinish = false;
+                
+                checkedBoxes.forEach(checkbox => {
+                    const row = checkbox.closest('tr');
+                    const originalIndex = parseInt(row.getAttribute('data-index'));
+                    if (!isNaN(originalIndex) && allDataRows[originalIndex]) {
+                        const status = allDataRows[originalIndex].Status;
+                        if (status === 'Pending') {
+                            canStart = true;
+                        }
+                        if (status === 'In Progress') {
+                            canFinish = true;
+                        }
+                    }
+                });
+                startAllBtn.disabled = !canStart;
+                finishAllBtn.disabled = !canFinish;
+            }
+        }
+
+        startAllBtn.addEventListener('click', () => {
+            loadingSpinner.style.display = 'flex';
+            setTimeout(() => {
+                const checkedRows = dataTableBody.querySelectorAll('.row-checkbox:checked');
+                const now = new Date();
+                const formattedDate = `${now.getDate().toString().padStart(2, '0')}-${monthNames[now.getMonth()]}-${now.getFullYear()}`;
+                const formattedTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const startAtString = `${formattedDate}, ${formattedTime} WIB`;
+                let updatedCount = 0;
+                checkedRows.forEach(checkbox => {
+                    const row = checkbox.closest('tr');
+                    const originalIndex = parseInt(row.getAttribute('data-index'));
+                    
+                    if (originalIndex !== -1 && allDataRows[originalIndex].Status === 'Pending') {
+                        allDataRows[originalIndex]['Start at'] = startAtString;
+                        allDataRows[originalIndex]['start-time-iso'] = now.toISOString();
+                        allDataRows[originalIndex].Status = 'In Progress';
+                        allDataRows[originalIndex]['Created By'] = 'Nandya Laksita Ariani';
+                        updatedCount++;
+                    }
+                });
+                loadingSpinner.style.display = 'none';
+                if (updatedCount > 0) {
+                    showMessage('Status berhasil diubah menjadi In Progress.');
+                } else {
+                    showMessage('Tidak ada dokumen yang memenuhi syarat untuk diubah statusnya.');
+                }
+                filteredDataRows = [...allDataRows];
+                displayRows(currentPage);
+            }, 1000);
+        });
+
+        finishAllBtn.addEventListener('click', () => {
+            loadingSpinner.style.display = 'flex';
+            setTimeout(() => {
+                const checkedRows = dataTableBody.querySelectorAll('.row-checkbox:checked');
+                const now = new Date();
+                const formattedDate = `${now.getDate().toString().padStart(2, '0')}-${monthNames[now.getMonth()]}-${now.getFullYear()}`;
+                const formattedTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const doneAtString = `${formattedDate}, ${formattedTime} WIB`;
+                let updatedCount = 0;
+                checkedRows.forEach(checkbox => {
+                    const row = checkbox.closest('tr');
+                    const originalIndex = parseInt(row.getAttribute('data-index'));
+
+                    if (originalIndex !== -1 && allDataRows[originalIndex].Status === 'In Progress') {
+                        allDataRows[originalIndex]['Done at'] = doneAtString;
+                        allDataRows[originalIndex]['finish-time-iso'] = now.toISOString();
+                        allDataRows[originalIndex]['Checker By'] = 'Arlan Saputra';
+                        allDataRows[originalIndex].Status = 'Completed';
+                        updatedCount++;
+                    }
+                });
+                loadingSpinner.style.display = 'none';
+                if (updatedCount > 0) {
+                    showMessage('Status berhasil diubah menjadi Completed.');
+                } else {
+                    showMessage('Tidak ada dokumen yang memenuhi syarat untuk diubah statusnya.');
+                }
+                filteredDataRows = [...allDataRows];
+                displayRows(currentPage);
+            }, 1000);
+        });
+        
+        editDocBtn.addEventListener('click', () => {
+            const checkedBoxes = dataTableBody.querySelectorAll('.row-checkbox:checked');
+            if (checkedBoxes.length > 0) {
+                const firstRow = checkedBoxes[0].closest('tr');
+                const originalIndex = parseInt(firstRow.getAttribute('data-index'));
+                const docData = allDataRows[originalIndex];
+                
+                if (docData) {
+                    editingUniqueId = `${docData['Document Number']}-${docData['Reference SKU']}`;
+
+                    editFields['Document Number'].value = docData['Document Number'];
+                    editFields['Reference SKU'].value = docData['Reference SKU'];
+                    editFields['Barcode'].value = docData['Barcode'];
+                    editFields['Product Name'].value = docData['Product Name'];
+                    editFields['Brand'].value = docData['Brand'];
+                    editFields['Exp Date'].value = docData['Exp Date'];
+                    editFields['Quantity'].value = docData['Quantity'];
+                    editFields['Created By'].value = docData['Created By'];
+                    editFields['Checker By'].value = docData['Checker By'];
+
+                    editModal.style.display = 'flex';
+                }
+            } else {
+                showMessage('Harap pilih satu dokumen untuk diedit.');
+            }
+        });
+
+        closeEditModalBtn.addEventListener('click', () => {
+            editModal.style.display = 'none';
+            editingUniqueId = null;
+        });
+
+        saveEditBtn.addEventListener('click', () => {
+            if (editingUniqueId) {
+                // Find all documents with the same unique ID and update them
+                allDataRows.filter(doc => `${doc['Document Number']}-${doc['Reference SKU']}` === editingUniqueId).forEach(doc => {
+                    doc['Document Number'] = editFields['Document Number'].value;
+                    doc['Reference SKU'] = editFields['Reference SKU'].value;
+                    doc['Barcode'] = editFields['Barcode'].value;
+                    doc['Product Name'] = editFields['Product Name'].value;
+                    doc['Brand'] = editFields['Brand'].value;
+                    doc['Exp Date'] = editFields['Exp Date'].value;
+                    doc['Quantity'] = editFields['Quantity'].value;
+                    doc['Created By'] = editFields['Created By'].value;
+                    doc['Checker By'] = editFields['Checker By'].value;
+                });
+                
+                filteredDataRows = [...allDataRows];
+                displayRows(currentPage);
+                editModal.style.display = 'none';
+                editingUniqueId = null;
+                showMessage('Dokumen berhasil diubah.');
+            }
+        });
+
+        exportSvButton.addEventListener('click', () => {
+            const headers = tableHeaders;
+            let csv = [headers.join(',')];
+
+            allDataRows.forEach(rowData => {
+                const rowDataArray = headers.map(header => {
+                    let value = rowData[header];
+                    if (header === 'Done at' && rowData['start-time-iso'] && rowData['finish-time-iso']) {
+                        const startDate = new Date(rowData['start-time-iso']);
+                        const finishDate = new Date(rowData['finish-time-iso']);
+                        const durationMs = finishDate.getTime() - startDate.getTime();
+                        value = `${rowData['Done at']} (${formatDuration(durationMs)})`;
+                    }
+                    return `"${(value || '').toString().replace(/"/g, '""')}"`;
+                });
+                csv.push(rowDataArray.join(','));
+            });
+
+            const csvString = csv.join('\n');
+            const blob = new Blob([csvString], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'putaway_data.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showMessage('Data berhasil diekspor sebagai putaway_data.csv!');
+        });
+
+        window.onload = function() {
+            init3D();
+            animate();
+            displayRows(currentPage);
+        };
+    </script>
+
+</body>
+</html>
