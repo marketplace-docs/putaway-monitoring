@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Putaway Monitoring</title>
+    <title>Putaway Dashboard</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Ikon put away untuk browser -->
+    <link rel="icon" href="https://img.icons8.com/plasticine/100/box.png" type="image/png">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body {
@@ -25,6 +27,12 @@
             position: relative;
             z-index: 10;
         }
+        .fullscreen {
+            width: 100vw;
+            height: 100vh;
+            max-width: 100vw !important;
+            padding: 1rem !important;
+        }
     </style>
 </head>
 <body class="bg-gray-900">
@@ -33,7 +41,7 @@
     <div id="scene-container"></div>
 
     <!-- Main Dashboard Content -->
-    <div class="dashboard-container min-h-screen flex items-center justify-center p-4 md:p-8">
+    <div id="main-content" class="dashboard-container min-h-screen flex items-center justify-center p-4 md:p-8">
         <div class="bg-gray-800 bg-opacity-70 backdrop-blur-md rounded-2xl shadow-xl w-full max-w-7xl p-6 md:p-10 flex flex-col gap-6">
             <header class="flex flex-col md:flex-row justify-between items-center gap-4">
                 <h1 class="text-3xl font-bold text-white">Putaway Dashboard</h1>
@@ -52,6 +60,13 @@
                     <!-- Scan Document Button - Adjusted size -->
                     <button id="scan-doc-btn" class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold rounded-lg shadow-md transition-colors duration-300">
                         Scan Document
+                    </button>
+                    <!-- Fullscreen Toggle Button -->
+                    <button id="fullscreen-btn" class="p-2 bg-gray-700 text-white rounded-lg shadow-md hover:bg-gray-600 transition-colors duration-300">
+                        <!-- Maximize Icon -->
+                        <svg id="maximize-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 0h-4m4 0l-5-5"></path></svg>
+                        <!-- Minimize Icon -->
+                        <svg id="minimize-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 4H4m0 0v4m0-4l5 5m7-5h4m0 0v4m0-4l-5 5M8 20H4m0 0v-4m0 4l5-5m7 5h4m0 0v-4m0 4l-5-5"></path></svg>
                     </button>
                 </div>
             </header>
@@ -90,8 +105,10 @@
                             <th class="py-3 px-6 text-left">Start at</th>
                             <th class="py-3 px-6 text-left">Done at</th>
                             <th class="py-3 px-6 text-left">Created By</th>
+                            <th class="py-3 px-6 text-left">Putaway By</th>
                             <th class="py-3 px-6 text-left">Checker By</th>
                             <th class="py-3 px-6 text-left">Status</th>
+                            <th class="py-3 px-6 text-center">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="data-table-body" class="divide-y divide-gray-700">
@@ -205,6 +222,10 @@
                     <input type="text" id="edit-created-by" class="w-full mt-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
                 </div>
                 <div>
+                    <label for="edit-putaway-by" class="block text-gray-400 text-sm">Putaway By</label>
+                    <input type="text" id="edit-putaway-by" class="w-full mt-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <div>
                     <label for="edit-checker-by" class="block text-gray-400 text-sm">Checker By</label>
                     <input type="text" id="edit-checker-by" class="w-full mt-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
                 </div>
@@ -290,7 +311,7 @@
         const searchInput = document.getElementById('search-input');
         const rowsPerPageSelect = document.getElementById('rows-per-page-select');
 
-        const tableHeaders = ["Document Number", "Reference SKU", "Barcode", "Product Name", "Brand", "Exp Date", "Quantity", "Start at", "Done at", "Created By", "Checker By", "Status"];
+        const tableHeaders = ["Document Number", "Reference SKU", "Barcode", "Product Name", "Brand", "Exp Date", "Quantity", "Start at", "Done at", "Created By", "Putaway By", "Checker By", "Status", "Aksi"];
         
         let allDataRows = [];
         let filteredDataRows = [];
@@ -308,7 +329,7 @@
         const loadingSpinner = document.getElementById('loading-spinner');
 
         let uploadedFiles = [];
-        let editingUniqueId = null; 
+        let editingOriginalIndex = -1; 
 
         // Edit modal elements
         const editModal = document.getElementById('edit-modal');
@@ -323,6 +344,7 @@
             'Exp Date': document.getElementById('edit-exp-date'),
             'Quantity': document.getElementById('edit-quantity'),
             'Created By': document.getElementById('edit-created-by'),
+            'Putaway By': document.getElementById('edit-putaway-by'),
             'Checker By': document.getElementById('edit-checker-by')
         };
 
@@ -340,7 +362,7 @@
         
         function updateRowStatus(row, status) {
             const statusCellSpan = row.querySelector('.status-cell-span');
-            const rowIndex = row.getAttribute('data-index');
+            const originalIndex = parseInt(row.getAttribute('data-index'));
 
             if (statusCellSpan) {
                 statusCellSpan.textContent = status;
@@ -387,6 +409,7 @@
                         'Start at': '',
                         'Done at': '',
                         'Created By': 'Nandya Laksita Ariani', 
+                        'Putaway By': '',
                         'Checker By': '', 
                     };
                     allDataRows.push(rowData);
@@ -436,6 +459,7 @@
                     'Start at': '',
                     'Done at': '',
                     'Created By': 'Nandya Laksita Ariani',
+                    'Putaway By': '',
                     'Checker By': '',
                 };
                 allDataRows.push(rowData);
@@ -604,6 +628,11 @@
                         }
                         cell.appendChild(statusSpan);
                         cell.classList.add('status-cell');
+                    } else if (header === 'Aksi') {
+                        const editButton = document.createElement('button');
+                        editButton.className = 'edit-row-btn px-2 py-1 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold rounded-lg text-xs transition-colors duration-300';
+                        editButton.textContent = 'Edit';
+                        cell.appendChild(editButton);
                     } else if (header === 'Start at') {
                         const startAtText = rowData['Start at'];
                         cell.textContent = startAtText || '';
@@ -638,6 +667,7 @@
             
             updatePaginationInfo();
             setupCheckboxes();
+            setupRowEditButtons();
         }
 
         function updatePaginationInfo() {
@@ -781,7 +811,7 @@
                         allDataRows[originalIndex]['Start at'] = startAtString;
                         allDataRows[originalIndex]['start-time-iso'] = now.toISOString();
                         allDataRows[originalIndex].Status = 'In Progress';
-                        allDataRows[originalIndex]['Created By'] = 'Nandya Laksita Ariani';
+                        allDataRows[originalIndex]['Putaway By'] = 'Noval Ardiansyah';
                         updatedCount++;
                     }
                 });
@@ -828,6 +858,33 @@
             }, 1000);
         });
         
+        function setupRowEditButtons() {
+            dataTableBody.querySelectorAll('.edit-row-btn').forEach(btn => {
+                btn.addEventListener('click', (event) => {
+                    const row = event.target.closest('tr');
+                    const originalIndex = parseInt(row.getAttribute('data-index'));
+                    const docData = allDataRows[originalIndex];
+
+                    if (docData) {
+                        editingOriginalIndex = originalIndex;
+
+                        editFields['Document Number'].value = docData['Document Number'];
+                        editFields['Reference SKU'].value = docData['Reference SKU'];
+                        editFields['Barcode'].value = docData['Barcode'];
+                        editFields['Product Name'].value = docData['Product Name'];
+                        editFields['Brand'].value = docData['Brand'];
+                        editFields['Exp Date'].value = docData['Exp Date'];
+                        editFields['Quantity'].value = docData['Quantity'];
+                        editFields['Created By'].value = docData['Created By'];
+                        editFields['Putaway By'].value = docData['Putaway By'];
+                        editFields['Checker By'].value = docData['Checker By'];
+
+                        editModal.style.display = 'flex';
+                    }
+                });
+            });
+        }
+        
         editDocBtn.addEventListener('click', () => {
             const checkedBoxes = dataTableBody.querySelectorAll('.row-checkbox:checked');
             if (checkedBoxes.length > 0) {
@@ -836,7 +893,7 @@
                 const docData = allDataRows[originalIndex];
                 
                 if (docData) {
-                    editingUniqueId = `${docData['Document Number']}-${docData['Reference SKU']}`;
+                    editingOriginalIndex = originalIndex;
 
                     editFields['Document Number'].value = docData['Document Number'];
                     editFields['Reference SKU'].value = docData['Reference SKU'];
@@ -846,6 +903,7 @@
                     editFields['Exp Date'].value = docData['Exp Date'];
                     editFields['Quantity'].value = docData['Quantity'];
                     editFields['Created By'].value = docData['Created By'];
+                    editFields['Putaway By'].value = docData['Putaway By'];
                     editFields['Checker By'].value = docData['Checker By'];
 
                     editModal.style.display = 'flex';
@@ -857,28 +915,28 @@
 
         closeEditModalBtn.addEventListener('click', () => {
             editModal.style.display = 'none';
-            editingUniqueId = null;
+            editingOriginalIndex = -1;
         });
 
         saveEditBtn.addEventListener('click', () => {
-            if (editingUniqueId) {
-                // Find all documents with the same unique ID and update them
-                allDataRows.filter(doc => `${doc['Document Number']}-${doc['Reference SKU']}` === editingUniqueId).forEach(doc => {
-                    doc['Document Number'] = editFields['Document Number'].value;
-                    doc['Reference SKU'] = editFields['Reference SKU'].value;
-                    doc['Barcode'] = editFields['Barcode'].value;
-                    doc['Product Name'] = editFields['Product Name'].value;
-                    doc['Brand'] = editFields['Brand'].value;
-                    doc['Exp Date'] = editFields['Exp Date'].value;
-                    doc['Quantity'] = editFields['Quantity'].value;
-                    doc['Created By'] = editFields['Created By'].value;
-                    doc['Checker By'] = editFields['Checker By'].value;
-                });
+            if (editingOriginalIndex !== -1) {
+                const docToUpdate = allDataRows[editingOriginalIndex];
+
+                docToUpdate['Document Number'] = editFields['Document Number'].value;
+                docToUpdate['Reference SKU'] = editFields['Reference SKU'].value;
+                docToUpdate['Barcode'] = editFields['Barcode'].value;
+                docToUpdate['Product Name'] = editFields['Product Name'].value;
+                docToUpdate['Brand'] = editFields['Brand'].value;
+                docToUpdate['Exp Date'] = editFields['Exp Date'].value;
+                docToUpdate['Quantity'] = editFields['Quantity'].value;
+                docToUpdate['Created By'] = editFields['Created By'].value;
+                docToUpdate['Putaway By'] = editFields['Putaway By'].value;
+                docToUpdate['Checker By'] = editFields['Checker By'].value;
                 
                 filteredDataRows = [...allDataRows];
                 displayRows(currentPage);
                 editModal.style.display = 'none';
-                editingUniqueId = null;
+                editingOriginalIndex = -1;
                 showMessage('Dokumen berhasil diubah.');
             }
         });
