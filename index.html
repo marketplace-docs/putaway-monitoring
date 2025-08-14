@@ -310,6 +310,10 @@
         const editDocBtn = document.getElementById('edit-doc-btn');
         const searchInput = document.getElementById('search-input');
         const rowsPerPageSelect = document.getElementById('rows-per-page-select');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const mainContent = document.getElementById('main-content');
+        const maximizeIcon = document.getElementById('maximize-icon');
+        const minimizeIcon = document.getElementById('minimize-icon');
 
         const tableHeaders = ["Document Number", "Reference SKU", "Barcode", "Product Name", "Brand", "Exp Date", "Quantity", "Start at", "Done at", "Created By", "Putaway By", "Checker By", "Status", "Aksi"];
         
@@ -811,7 +815,6 @@
                         allDataRows[originalIndex]['Start at'] = startAtString;
                         allDataRows[originalIndex]['start-time-iso'] = now.toISOString();
                         allDataRows[originalIndex].Status = 'In Progress';
-                        allDataRows[originalIndex]['Putaway By'] = 'Noval Ardiansyah';
                         updatedCount++;
                     }
                 });
